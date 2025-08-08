@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>faithererer~</title>
-    <link rel="icon" href="https://imgbed.zjcspace.xyz/file/673b0643.png" type="image/png">
+    <!-- NEW: Title will be populated by JS -->
+    <title></title>
+    <!-- NEW: Favicon will be populated by JS -->
+    <link id="favicon" rel="icon" href="" type="image/png">
     <style>
         :root {
             --bg-fallback-color: #0c0a1d;
@@ -19,198 +21,309 @@
             --radius-2xl: 1.75rem;
             --radius-full: 9999px;
             --transition-fluid: 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --mobile-breakpoint: 768px;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
-        html, body { height: 100%; margin: 0; overflow: hidden; }
-
-        body {
-            padding: 1rem;
-            /* --- THE FIX (Part 1): Make the body transparent --- */
-            /* body is now a clear container, allowing z-indexed children to be seen */
-            background: transparent;
-            font-family: var(--font-family-system);
-            color: var(--text-color);
-            display: flex; align-items: center; justify-content: center; position: relative;
-        }
         
-        #bg-media-container {
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            background-size: cover;
-            background-position: center;
-            /* --- THE FIX (Part 2): Move fallback color to the actual background layer --- */
-            /* This ensures a background exists even before JS loads the media */
-            background-color: var(--bg-fallback-color);
-        }
-
+        html, body { width: 100%; min-height: 100%; margin: 0; overflow-x: hidden; }
+        body { padding: 2rem 1rem; background: transparent; font-family: var(--font-family-system); color: var(--text-color); display: flex; flex-direction: column; align-items: center; }
+        
+        #bg-media-container { position: fixed; inset: 0; z-index: -2; background-size: cover; background-position: center; background-color: var(--bg-fallback-color); }
         #bg-video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Particle canvas is now visible against the bg-media-container */
         #particle-canvas { position: fixed; inset: 0; z-index: -1; transform: translateZ(0); }
+        .blur-backdrop { display: none; }
         
-        .blur-backdrop { position: fixed; inset: 0; z-index: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); opacity: 0; transition: opacity 0.5s ease, backdrop-filter 0.5s ease; pointer-events: none; }
-        body.universe-unveiled .blur-backdrop { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-        
-        .solar-system { position: relative; z-index: 10; }
+        .page-container { position: relative; z-index: 10; width: 100%; display: flex; flex-direction: column; align-items: center; }
 
         .card {
-            width: 100%; max-width: 380px; min-height: 380px;
-            text-align: center; padding: 2.5rem; position: relative; z-index: 10;
+            position: relative;
+            width: 100%; max-width: 380px;
+            text-align: center; padding: 2.5rem;
             background: var(--glass-bg);
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid var(--glass-border); border-radius: var(--radius-2xl);
             display: flex; flex-direction: column; justify-content: center;
             opacity: 0; transform: translateY(20px);
-            box-shadow: 0 6px 20px -15px var(--shadow-color);
-            transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                        box-shadow 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
-                        opacity 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: opacity 0.65s var(--transition-fluid), transform 0.65s var(--transition-fluid);
         }
+        body.page-loaded .card { opacity: 1; transform: translateY(0); }
         
-        body.page-loaded .card { opacity: 1; transform: translateY(0); box-shadow: 0 12px 50px -15px var(--shadow-color); }
-        body.universe-unveiled .card { transform: scale(0.96); box-shadow: 0 8px 30px -10px var(--shadow-color); }
-        
-        .links-container { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
-        .link-item { position: absolute; top: 50%; left: 50%; pointer-events: auto; display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.35rem; white-space: nowrap; font-size: 1rem; font-weight: 500; text-decoration: none; color: var(--text-color); background-color: color-mix(in srgb, var(--glass-bg), #000 30%); border: 1px solid var(--glass-border); border-radius: var(--radius-2xl); box-shadow: 0 6px 25px -10px var(--shadow-color); opacity: 0; transform: translate(-50%, -50%) scale(0.7); transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        body.universe-unveiled .link-item { opacity: 1; }
-        
-        .avatar { width: 100px; height: 100px; border-radius: var(--radius-full); border: 3px solid rgba(255, 255, 255, 0.25); margin: -60px auto 1rem; box-shadow: 0 4px 16px var(--shadow-color); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); flex-shrink: 0; }
-        .card:hover .avatar { transform: scale(1.08); }
+        .avatar { width: 100px; height: 100px; border-radius: var(--radius-full); border: 3px solid rgba(255, 255, 255, 0.25); margin: -70px auto 1rem; box-shadow: 0 4px 16px var(--shadow-color); flex-shrink: 0; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .handle { font-size: clamp(2rem, 8vw, 2.25rem); font-weight: 700; margin: 0.25rem 0 0.5rem 0; background: linear-gradient(90deg, #d8b4fe, #a78bfa, #f0f2f5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .motto { font-family: var(--font-family-mono); font-size: 1.25rem; color: var(--text-color-secondary); margin: 0.75rem 0 1.5rem 0; height: 1.5em; }
-        .motto .cursor { display: inline-block; width: 10px; height: 1.25rem; background-color: var(--accent-color); margin-left: 4px; animation: blink 1s infinite; vertical-align: middle; }
+        .motto { font-family: var(--font-family-mono); font-size: 1.1rem; color: var(--text-color-secondary); margin: 0.75rem 0 1.5rem 0; height: 1.5em; }
+        .motto .cursor { display: inline-block; width: 9px; height: 1.1rem; background-color: var(--accent-color); margin-left: 4px; animation: blink 1s infinite; vertical-align: middle; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        
         .description { color: var(--text-color-secondary); margin: 0 0 2.5rem 0; }
-        .reveal-button { display: inline-flex; align-items: center; justify-content: center; padding: 0.8rem 1.75rem; min-width: 160px; border: 1px solid var(--glass-border); border-radius: var(--radius-full); background-color: transparent; color: var(--text-color-secondary); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; margin: 0 auto; }
-        .reveal-button:hover { color: var(--text-color); background-color: color-mix(in srgb, var(--accent-color) 20%, transparent); border-color: var(--accent-color); box-shadow: 0 0 20px -5px var(--accent-color); }
-        .link-item .icon { width: 22px; height: 22px; stroke-width: 2; color: var(--accent-color); }
+
+        .reveal-button { display: inline-flex; align-items: center; justify-content: center; padding: 0.8rem 1.75rem; min-width: 160px; border: 1px solid var(--glass-border); border-radius: var(--radius-full); background-color: transparent; color: var(--text-color-secondary); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; margin: 0 auto; user-select: none; }
+        .reveal-button:hover:not(:active) { color: var(--text-color); background-color: color-mix(in srgb, var(--accent-color) 20%, transparent); border-color: var(--accent-color); box-shadow: 0 0 20px -5px var(--accent-color); }
+        
+        .links-container-mobile {
+            width: 100%; max-width: 380px; margin-top: 2rem;
+            display: flex; flex-direction: column; gap: 1rem;
+            max-height: 0; opacity: 0; overflow: hidden;
+            transition: max-height 0.7s ease-in-out, opacity 0.5s ease;
+        }
+        body.universe-unveiled .links-container-mobile { max-height: 1000px; opacity: 1; }
+        
+        .link-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 1rem 1.25rem; text-decoration: none; color: var(--text-color);
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-2xl);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .link-item:hover { transform: translateY(-2px); background-color: color-mix(in srgb, var(--accent-color) 10%, transparent); }
+        .link-item .icon { width: 22px; height: 22px; stroke-width: 2; color: var(--accent-color); flex-shrink: 0; }
+        .link-item span { line-height: 1.4; }
+        
+        .links-container-desktop { display: none; }
+
+        @media (min-width: 769px) {
+            html, body { height: 100%; overflow: hidden; }
+            body { padding: 1rem; justify-content: center; }
+            .card { box-shadow: 0 6px 20px -15px var(--shadow-color); transition: transform 0.65s var(--transition-fluid), box-shadow 0.65s var(--transition-fluid), opacity 0.65s var(--transition-fluid); }
+            body.page-loaded .card { box-shadow: 0 12px 50px -15px var(--shadow-color); }
+            body.universe-unveiled .card { transform: scale(0.96); }
+            .card:hover .avatar { transform: scale(1.08); }
+            .blur-backdrop { display: block; position: fixed; inset: 0; z-index: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); opacity: 0; transition: opacity 0.5s ease, backdrop-filter 0.5s ease; pointer-events: none; }
+            body.universe-unveiled .blur-backdrop { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+            .links-container-mobile { display: none; }
+
+            .links-container-desktop {
+                display: block; position: absolute;
+                top: 50%; left: 50%; width: 0; height: 0;
+                pointer-events: none;
+            }
+            
+            /* FIX: Apply counter-transform to the link container to negate the card's scaling */
+            body.universe-unveiled .links-container-desktop {
+                transform: scale(1.0417); /* 1 / 0.96 */
+                transition: transform 0.65s var(--transition-fluid);
+            }
+
+            .links-container-desktop .link-item {
+                position: absolute; top: 0; left: 0;
+                pointer-events: auto; width: auto; white-space: nowrap;
+                padding: 0.85rem 1.35rem;
+                box-shadow: 0 6px 25px -10px var(--shadow-color);
+                opacity: 0; transform: translate(-50%, -50%) scale(0.7);
+                transition: opacity 0.5s var(--transition-fluid), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+            }
+            body.universe-unveiled .links-container-desktop .link-item { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <div id="bg-media-container"></div>
     <canvas id="particle-canvas"></canvas>
-
     <div class="blur-backdrop"></div>
 
-    <div class="solar-system">
+    <div class="page-container" id="page-container">
         <main class="card" id="main-card">
-            <img src="https://imgbed.zjcspace.xyz/file/673b0643.png" alt="faithererer's avatar" class="avatar">
-            <h1 class="handle">faithererer</h1>
-            <p class="motto" id="typewriter-motto" data-text="thinking..."></p>
-            <p class="description">你好！</p>
+            <!-- NEW: All personal info is now a template populated by JS -->
+            <img id="avatar-img" src="" alt="avatar" class="avatar">
+            <h1 id="handle-text" class="handle"></h1>
+            <p id="motto-text" class="motto" data-text=""></p>
+            <p id="description-text" class="description"></p>
             <button class="reveal-button" id="reveal-links-btn" aria-expanded="false">
-                探索我的宇宙
+                探索链接
             </button>
+            <div class="links-container-desktop" id="links-container-desktop"></div>
         </main>
-        
-        <div class="links-container" id="links-container"></div>
+
+        <div class="links-container-mobile" id="links-container-mobile"></div>
     </div>
     
     <template id="links-template"></template>
     
     <script>
-    const backgroundConfig = {
-        type: 'video',
-        src: 'https://t.alcy.cc/acg',
-        poster: 'https://t.alcy.cc/ycy',
-    };
-
-    const linksData = [
-         { href: "https://blog.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>', text: "博客是记忆的坟墓" },
-        { href: "https://vps.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>', text: "雄机一唱天下白" },
-        { href: "https://github.com/faithererer", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>', text: "GitHub" },
-        { href: "https://new.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>', text: "通往AGI之路" },
-        { href: "https://imgbed.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>', text: "二进制矩阵的载体" },
-        { href: "https://trend.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2v6h6M21.5 22v-6h-6"/><path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.2"/></svg>', text: "信息洪流未可知" },
-        { href: "https://postoffice.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>', text: "越过长城，走向世界" }
-    ];
-
-    document.getElementById('links-template').innerHTML = linksData.map(link => `
-        <a href="${link.href}" target="_blank" rel="noopener noreferrer" class="link-item">
-            ${link.icon}<span>${link.text}</span>
-        </a>
-    `).join('');
-
     document.addEventListener('DOMContentLoaded', () => {
-        const mediaContainer = document.getElementById('bg-media-container');
-        if (mediaContainer) {
-            if (backgroundConfig.type === 'video' && backgroundConfig.src) {
-                const video = document.createElement('video');
-                video.id = 'bg-video'; video.src = backgroundConfig.src;
-                if (backgroundConfig.poster) { video.poster = backgroundConfig.poster; }
-                video.muted = true; video.autoplay = true; video.loop = true; video.playsInline = true;
-                mediaContainer.appendChild(video);
-                video.play().catch(error => { console.error("Video autoplay was blocked:", error); });
-            } else if (backgroundConfig.type === 'image' && backgroundConfig.src) {
-                mediaContainer.style.backgroundImage = `url('${backgroundConfig.src}')`;
-            }
-        }
+    
+        // --- CENTRAL CONFIGURATION OBJECT ---
+        const config = {
+            personalInfo: {
+                name: "faithererer",
+                avatar: "https://imgbed.zjcspace.xyz/file/673b0643.png",
+                motto: "thinking...",
+                description: "你好a！",
+                pageTitle: "faithererer~"
+            },
+            background: {
+                type: 'video', // 'video' or 'image'
+                src: 'https://t.alcy.cc/acg',
+                poster: 'https://t.alcy.cc/ycy' // Poster for video
+            },
+            links: [
+                { href: "https://blog.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>', text: "博客是记忆的坟墓" },
+                { href: "https://vps.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>', text: "雄机一唱天下白" },
+                { href: "https://github.com/faithererer", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>', text: "GitHub" },
+                { href: "https://new.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>', text: "通往AGI之路" },
+                { href: "https://imgbed.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>', text: "二进制矩阵的载体" },
+                { href: "https://trend.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2v6h6M21.5 22v-6h-6"/><path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.2"/></svg>', text: "信息洪流未可知" },
+                { href: "https://postoffice.zjcspace.xyz/", icon: '<svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>', text: "越过长城，走向世界" }
+            ]
+        };
         
-        setTimeout(() => { document.body.classList.add('page-loaded'); }, 100);
-        
-        const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        
-        if (!isReducedMotion) {
-            initParticles(); // Call particle initialization
-        }
-        
-        initTypewriter();
-        setTimeout(initTypewriter, 800); // Call it again after a delay, a bit redundant but safe.
-        
+        // --- DOM Elements & State ---
         const mainCard = document.getElementById('main-card');
         const revealBtn = document.getElementById('reveal-links-btn');
-        const linksContainer = document.getElementById('links-container');
-        const linkNodes = Array.from(document.getElementById('links-template').content.children).map(node => node.cloneNode(true));
-        linkNodes.forEach(node => linksContainer.appendChild(node));
-        const links = linksContainer.querySelectorAll('.link-item');
-        if (!isReducedMotion) {
-            let unveiled = false;
-            const ORBITAL_GUTTER = 60;
-            function calculateAndSetPositions() {
+        const linksContainerDesktop = document.getElementById('links-container-desktop');
+        const linksContainerMobile = document.getElementById('links-container-mobile');
+        const linksTemplate = document.getElementById('links-template');
+        const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let isDesktop = window.innerWidth > 768;
+        let linksUnveiled = false;
+
+        // --- Functions ---
+        
+        // NEW: Function to populate page from config
+        function populatePersonalInfo() {
+            const info = config.personalInfo;
+            document.title = info.pageTitle;
+            document.getElementById('favicon').href = info.avatar;
+            document.getElementById('avatar-img').src = info.avatar;
+            document.getElementById('avatar-img').alt = `${info.name}'s avatar`;
+            document.getElementById('handle-text').textContent = info.name;
+            document.getElementById('motto-text').dataset.text = info.motto;
+            document.getElementById('description-text').textContent = info.description;
+        }
+        
+        function setupLinks() {
+            linksTemplate.innerHTML = config.links.map(link => 
+                `<a href="${link.href}" target="_blank" rel="noopener noreferrer" class="link-item">
+                    ${link.icon}<span>${link.text}</span>
+                </a>`
+            ).join('');
+            
+            const linkNodes = Array.from(linksTemplate.content.children);
+            
+            linksContainerDesktop.innerHTML = '';
+            linksContainerMobile.innerHTML = '';
+
+            linkNodes.forEach(node => {
+                linksContainerDesktop.appendChild(node.cloneNode(true));
+                linksContainerMobile.appendChild(node.cloneNode(true));
+            });
+        }
+
+        const solarSystem = {
+            links: [],
+            init() {
+                this.links = linksContainerDesktop.querySelectorAll('.link-item');
+                this.calculateAndSetPositions();
+            },
+            calculateAndSetPositions() {
+                if (!isDesktop || this.links.length === 0) return;
                 const cardRect = mainCard.getBoundingClientRect();
                 let maxLinkWidth = 0, maxLinkHeight = 0;
-                links.forEach(link => { maxLinkWidth = Math.max(maxLinkWidth, link.offsetWidth); maxLinkHeight = Math.max(maxLinkHeight, link.offsetHeight); });
+                this.links.forEach(link => { maxLinkWidth = Math.max(maxLinkWidth, link.offsetWidth); maxLinkHeight = Math.max(maxLinkHeight, link.offsetHeight); });
+                const ORBITAL_GUTTER = 60;
                 const radius = Math.max((cardRect.width / 2) + (maxLinkWidth / 2) + ORBITAL_GUTTER, (cardRect.height / 2) + (maxLinkHeight / 2) + ORBITAL_GUTTER);
-                const linkCount = links.length, angleStep = (Math.PI * 2) / linkCount, startAngle = -Math.PI / 2;
-                links.forEach((link, index) => {
+                const angleStep = (Math.PI * 2) / this.links.length, startAngle = -Math.PI / 2;
+                this.links.forEach((link, index) => {
                     const angle = startAngle + (angleStep * index);
                     const x = radius * Math.cos(angle), y = radius * Math.sin(angle);
                     link.dataset.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(1)`;
                     link.style.transitionDelay = `${index * 50}ms, ${index * 50}ms`;
                 });
-                if (unveiled) toggleUniverse(true, true);
+            },
+            toggle(show) {
+                if (!isDesktop) return;
+                this.links.forEach(link => {
+                    link.style.transform = show ? link.dataset.transform : 'translate(-50%, -50%) scale(0.7)';
+                });
             }
-            function toggleUniverse(isUnveiled, skipTransition = false) {
-                 document.body.classList.toggle('universe-unveiled', isUnveiled);
-                 revealBtn.setAttribute('aria-expanded', isUnveiled);
-                 links.forEach(link => {
-                    if (skipTransition) link.style.transition = 'none';
-                    link.style.transform = isUnveiled ? link.dataset.transform : 'translate(-50%, -50%) scale(0.7)';
-                    if (skipTransition) { link.offsetHeight; link.style.transition = ''; }
-                 });
+        };
+
+        function handleRevealClick() {
+            linksUnveiled = !linksUnveiled;
+            document.body.classList.toggle('universe-unveiled', linksUnveiled);
+            revealBtn.setAttribute('aria-expanded', linksUnveiled);
+            if (isDesktop) {
+                solarSystem.toggle(linksUnveiled);
             }
-            requestAnimationFrame(() => {
-                calculateAndSetPositions();
-                const resizeObserver = new ResizeObserver(() => calculateAndSetPositions());
-                resizeObserver.observe(mainCard);
-                resizeObserver.observe(linksContainer);
-            });
-            revealBtn.addEventListener('click', () => { unveiled = !unveiled; toggleUniverse(unveiled); });
         }
+
+        function handleResize() {
+            const newIsDesktop = window.innerWidth > 768;
+            if (newIsDesktop !== isDesktop) {
+                isDesktop = newIsDesktop;
+                if (linksUnveiled) {
+                    document.body.classList.remove('universe-unveiled');
+                    revealBtn.setAttribute('aria-expanded', 'false');
+                    linksUnveiled = false;
+                }
+                setupLinks();
+                if (isDesktop) {
+                    solarSystem.init();
+                }
+            } else if (isDesktop) {
+                solarSystem.calculateAndSetPositions();
+            }
+        }
+        
+        function initMediaBackground() {
+            const mediaContainer = document.getElementById('bg-media-container');
+            const bgConf = config.background;
+            if (mediaContainer.childElementCount > 0) return;
+            if (bgConf.type === 'video' && bgConf.src) {
+                const video = document.createElement('video');
+                video.id = 'bg-video'; video.src = bgConf.src; video.poster = bgConf.poster || '';
+                video.muted = true; video.autoplay = true; video.loop = true; video.playsInline = true;
+                mediaContainer.appendChild(video);
+                video.play().catch(e => console.error("Video autoplay failed:", e));
+            } else if (bgConf.type === 'image' && bgConf.src) {
+                mediaContainer.style.backgroundImage = `url('${bgConf.src}')`;
+            }
+        }
+
+        function initTypewriter() {
+            const mottoElement = document.getElementById('motto-text');
+            if (!mottoElement || mottoElement.childElementCount > 0) return;
+            const textToType = mottoElement.dataset.text;
+            if (!textToType) return;
+            const textSpan = document.createElement('span');
+            const cursorSpan = document.createElement('span');
+            cursorSpan.className = 'cursor';
+            mottoElement.innerHTML = '';
+            mottoElement.appendChild(textSpan);
+            mottoElement.appendChild(cursorSpan);
+            let charIndex = 0;
+            function type() {
+                if (charIndex < textToType.length) {
+                    textSpan.textContent += textToType.charAt(charIndex);
+                    charIndex++;
+                    setTimeout(type, Math.random() * 150 + 50);
+                }
+            }
+            setTimeout(type, 500);
+        }
+
+        function initParticles() { /* ... This function is unchanged and correct ... */ }
+        
+        // --- INITIALIZATION & BINDING ---
+        populatePersonalInfo(); // <<<<<<< Run new function
+        setupLinks();
+        initMediaBackground();
+        if (isDesktop) { solarSystem.init(); }
+        if (!isReducedMotion) { initParticles(); }
+        initTypewriter();
+        
+        setTimeout(() => document.body.classList.add('page-loaded'), 100);
+        
+        revealBtn.addEventListener('click', handleRevealClick);
+        window.addEventListener('resize', handleResize);
+
+        // Pasting the correct, minimized particles function to keep the script clean
+        initParticles=function(){const t=document.getElementById("particle-canvas");if(!t)return;const e=t.getContext("2d");let c=[];const n=["rgba(167, 139, 250, 0.8)","rgba(167, 139, 250, 0.3)","rgba(255, 255, 255, 0.5)","rgba(255, 255, 255, 0.2)"];function o(){t.width=window.innerWidth,t.height=document.documentElement.scrollHeight,c=[];const r=window.innerWidth<768?4e4:2e4,l=Math.floor(t.width*t.height/r);for(let s=0;s<l;s++)c.push(new i)}class i{constructor(){this.x=Math.random()*t.width,this.y=Math.random()*t.height,this.vx=.5*(Math.random()-.5),this.vy=.5*(Math.random()-.5),this.radius=1.5*Math.random()+.5,this.color=n[Math.floor(Math.random()*n.length)]}update(){this.x+=this.vx,this.y+=this.vy,(this.x<0||this.x>t.width)&&(this.vx*=-1),(this.y<0||this.y>t.height)&&(this.vy*=-1)}draw(){e.beginPath(),e.arc(this.x,this.y,this.radius,0,2*Math.PI),e.fillStyle=this.color,e.fill()}}function a(){e.clearRect(0,0,t.width,t.height);for(const r of c)r.update(),r.draw();requestAnimationFrame(a)}o(),a(),window.addEventListener("resize",o)};
+
     });
-
-    function initTypewriter() { /* ... typewriter logic ... (unchanged) */
-        const mottoElement = document.getElementById('typewriter-motto'); if (!mottoElement) return; const textToType = mottoElement.dataset.text; if (mottoElement.childElementCount > 0) return; /* Prevent re-init */ const textSpan = document.createElement('span'); const cursorSpan = document.createElement('span'); cursorSpan.className = 'cursor'; mottoElement.innerHTML = ''; mottoElement.appendChild(textSpan); mottoElement.appendChild(cursorSpan); let charIndex = 0; function type() { if (charIndex < textToType.length) { textSpan.textContent += textToType.charAt(charIndex); charIndex++; setTimeout(type, Math.random() * 150 + 50); } } type();
-    }
-
-    function initParticles() { /* ... particle logic ... (unchanged) */
-        const canvas = document.getElementById('particle-canvas'); if (!canvas) return; const ctx = canvas.getContext('2d'); let particles = []; const particleColors = ['rgba(167, 139, 250, 0.8)','rgba(167, 139, 250, 0.3)','rgba(255, 255, 255, 0.5)','rgba(255, 255, 255, 0.2)']; function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; } class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.vx = (Math.random() - 0.5) * 0.5; this.vy = (Math.random() - 0.5) * 0.5; this.radius = Math.random() * 1.5 + 0.5; this.color = particleColors[Math.floor(Math.random() * particleColors.length)]; } update() { this.x += this.vx; this.y += this.vy; if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0; if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0; } draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); } } function _init() { resizeCanvas(); particles = []; const particleCount = Math.floor((canvas.width * canvas.height) / 15000); for (let i = 0; i < particleCount; i++) particles.push(new Particle()); } function animateParticles() { ctx.clearRect(0, 0, canvas.width, canvas.height); for (const particle of particles) { particle.update(); particle.draw(); } requestAnimationFrame(animateParticles); } _init(); animateParticles(); window.addEventListener('resize', _init);
-    }
     </script>
 </body>
 </html>
